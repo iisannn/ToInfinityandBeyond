@@ -1,0 +1,82 @@
+average delay of each airline
+customer total mileages. 
+
+CREATE FUNCTION dbo.fn_AVGDelayOfCarrier(@PK INT)
+RETURNS INT
+AS
+BEGIN
+    DECLARE @RET INT = (SELECT AVERAGE(F.EstimatedDepartureTime - FS.ActualDepartureTime) 
+                        FROM Carrier C
+                        JOIN Airplane A on C.CarrierID =  A.CarrierID
+                        JOIN Flight F ON A.AirplaneID = F.AirplaneID
+                        JOIN Flight_Status FS ON F.FlightStatusID = FS.FlightStatusID
+                        WHERE C.CarrierID = @PK
+                        GROUP BY C.CarrierID)  
+    RETURN @RET          
+END 
+
+ALTER TABLE Carrier
+ADD AVGDelayOfCarrier AS (dbo.fn_AVGDelayOfCarrier(CarrierID))
+
+
+CREATE FUNCTION dbo.CustomerTotalMilage(@PK INT)
+RETURNS INT
+AS
+BEGIN
+    DECLARE @RET INT = (SELECT SUM(F.Mileage)
+                        FROM Customer C
+                        JOIN Ticket T on C.TicketID =  T.TicketID
+                        JOIN Flight F ON T.FlightID = F.FlightID
+                        WHERE C.CustomerID = @PK
+                        GROUP BY C.CustomerID)  
+    RETURN @RET          
+END 
+
+ALTER TABLE Customer
+ADD CustomerTotalMilage AS (dbo.CustomerTotalMilage(CustomerID))
+
+
+Business Rule 
+1. Airplane which begin use dates greater than 15 years are not aloowed to host flight
+2. The weight of individual baggage of international flight is not allowed to weight more than 50 pounds. 
+
+*begindate shud be under airplane than model*
+CREATE FUNCTION dbo.fn_noflightafter15()
+RETURN INTEGER 
+AS
+BEGIN
+DECLARE @RET INTEGER = 0
+IF EXISTS(SELECT * FROM Flight F
+                JOIN Airplane A ON F.AirplaneID = A.AirplaneID
+                WHERE A.Begindate > DateAdd(Year, -15,GetDate())
+SET @RET = 1
+RETURN @RET
+END
+GO 
+
+ALTERTABLE Flight
+ADD CONSTRAINT ck_noflightafter15
+CHECK(dbo.fn_nonoflightafter15() = 0)
+
+
+CREATE FUNCTION dbo.fn_internationalnobaggageover50()
+RETURN INTEGER 
+AS
+BEGIN
+DECLARE @RET INTEGER = 0
+IF EXISTS(SELECT * FROM Flight F
+                JOIN FlightType FT ON F.FlightTypeID = FT.FlightTypeID
+                JOIN Ticket T ON F.TicketID = T.TicketID 
+                JOIN Baggage B ON T.TicketID = B.TicketID
+                WHERE B.Weight > 50
+                AND FT.FlightType = 'International'
+SET @RET = 1
+RETURN @RET
+END
+GO 
+
+ALTERTABLE Weight
+ADD CONSTRAINT ck_internationalnobaggageover50
+CHECK(dbo.fn_internationalnobaggageover50() = 0)
+
+
