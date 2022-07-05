@@ -9,3 +9,5 @@ In this project, our group designed and implemented a Multi-airline group's Data
   -Created Businesses rules
   
   -Ran comoplex SQL quieres  
+
+  -Data visualization
